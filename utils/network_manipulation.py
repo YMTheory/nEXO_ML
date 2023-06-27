@@ -40,7 +40,7 @@ def train(net, criterion, optimizer, trainloader, device, epoch):
     return train_loss/len(trainloader), 100.*correct/total
 
 
-def test(net, criterion, testloader, device, epoch, saveall=False):
+def test(net, criterion, testloader, device, epoch, loss_acc_path, modelpath, saveall=False):
     
     global best_acc
     net.eval()
@@ -78,12 +78,12 @@ def test(net, criterion, testloader, device, epoch, saveall=False):
             'acc': acc,
             'epoch': epoch,
         }
-        if not os.path.isdir('checkpoint_sens'):
-            os.mkdir('checkpoint_sens' )
-        if not os.path.isdir('training_outputs'):
-            os.mkdir('training_outputs')
-        torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
-        torch.save(state, './checkpoint_sens/ckpt.t7' )
+        if not os.path.isdir(modelpath):
+            os.mkdir(modelpath)
+        if not os.path.isdir(loss_acc_path):
+            os.mkdir(loss_acc_path)
+        torch.save(state, modelpath + modelfile[:-3]+str(epoch)+modelfile[-3:])
+        torch.save(state, modelpath + modelfile )
         best_acc = acc
     # Otherwise only save the best one
     elif acc > best_acc:
@@ -93,12 +93,12 @@ def test(net, criterion, testloader, device, epoch, saveall=False):
             'acc': acc,
             'epoch': epoch,
         }
-        if not os.path.isdir('checkpoint_sens'):
-            os.mkdir('checkpoint_sens' )
-        if not os.path.isdir('training_outputs'):
-            os.mkdir('training_outputs')
-        torch.save(state, './checkpoint_sens/ckpt_%d.t7' % epoch)
-        torch.save(state, './checkpoint_sens/ckpt.t7' )
+        if not os.path.isdir(modelpath):
+            os.mkdir(modelpath)
+        if not os.path.isdir(loss_acc_path):
+            os.mkdir(loss_acc_path)
+        torch.save(state, modelpath + modelfile[:-3]+str(epoch)+modelfile[-3:])
+        torch.save(state, modelpath + modelfile )
         best_acc = acc
         
     return test_loss/len(testloader), 100.*correct/total, score
@@ -106,7 +106,7 @@ def test(net, criterion, testloader, device, epoch, saveall=False):
 
 
 
-def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_loader, validation_loader, resume, saveall, loss_acc_file):
+def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_loader, validation_loader, resume, saveall, loss_acc_path, loss_acc_file, modelpath, modelfile):
 
     # Numpy arrays for loss and accuracy, if resume from checkpoint then read the previous results.
     if resume and os.path.exists(loss_acc_file):
@@ -148,7 +148,7 @@ def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_
 
             # Evaluate on validationset
             try:
-                valid_loss, prec1, score = test(net, criterion, validation_loader, device, epoch, saveall=saveall)
+                valid_loss, prec1, score = test(net, criterion, validation_loader, device, epoch, modelpath, modelfile, saveall=saveall)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
@@ -168,14 +168,14 @@ def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_
 
 
 
-def resume_model(modeldir, modelfile):
+def resume_model(modelpath, modelfile):
     # Load checkpoint
     print("===> Resuming from checkpoint...")
-    assert os.path.isdir(modeldir), "Error: no checkpoint directory found!"
+    assert os.path.isdir(modelpath), "Error: no checkpoint directory found!"
     if device == 'cuda':
-        checkpoint = torch.load(modeldir + '/' + modelfile)
+        checkpoint = torch.load(modelpath + '/' + modelfile)
     else:
-        checkpoint = torch.load(modeldir + '/' + modelfile, map_location=torch.device('cpu') )
+        checkpoint = torch.load(modelpath + '/' + modelfile, map_location=torch.device('cpu') )
     net.load_state_dict(checkpoint['net'])
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch'] + 1
