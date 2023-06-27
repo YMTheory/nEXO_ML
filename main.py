@@ -10,6 +10,7 @@ from utils.data_loader import prepare_input_data
 from utils.network_manipulation import train_net, resume_model
 from networks.resnet_example import resnet18
 from networks.preact_resnet import PreActResNet18
+from networks.coatnet import CoAtNet
 
 
 if torch.cuda.is_available():
@@ -48,7 +49,10 @@ if __name__ == '__main__' :
     config = yaml_load(args.config)
     h5_path = config['data']['h5file']
     csv_path = config['data']['csvfile']
+    loss_acc_path = config['data']['loss_acc_path']
     loss_acc_file = config['data']['loss_acc_file']
+    modelpath = config['data']['modelpath']
+    modelfile = config['data']['modelfile']
     input_shape = [int(i) for i in config['data']['input_shape']]
     lr = config['fit']['compile']['initial_lr']
     batch_size = config['fit']['batch_size']
@@ -60,11 +64,16 @@ if __name__ == '__main__' :
     print('\n===> Preparing dataset...')
     train_loader, validation_loader = prepare_input_data(h5_path, csv_path, input_shape[2], batch_size)
 
-    print('\n===> Buiding model...')
+    print(f'\n===> Buiding model {model_name}...')
     if model_name == "resnet18":
         net = resnet18(input_channels=input_shape[2])
     elif model_name == "preact_resnet18":
         net = PreActResNet18(num_channels=input_shape[2])
+    elif model_name == "coatnet":
+        num_blocks = [2, 2, 6, 14, 2]           # L
+        channels = [128, 128, 256, 512, 1026]   # D
+        Nlabels = 2
+        net = CoAtNet((256, 256), 2, num_blocks, channels, num_classes=Nlabels)        
 
     # define loss function and optimizer
     criterion = nn.CrossEntropyLoss().cuda()
@@ -82,9 +91,9 @@ if __name__ == '__main__' :
         net, best_acc, start_epoch = resume_model(modeldir, modelfile)
 
     # traing network
-    print(f"\n===>Training network {model_name}...")
+    print(f"\n===> Training network {model_name}...")
 
-    train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_loader, validation_loader, args.resume, args.save_all, loss_acc_file)
+    train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_loader, validation_loader, args.resume, args.save_all, loss_acc_path, loss_acc_file, modelpath, modelfile)
 
 
 

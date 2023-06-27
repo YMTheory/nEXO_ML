@@ -40,7 +40,7 @@ def train(net, criterion, optimizer, trainloader, device, epoch):
     return train_loss/len(trainloader), 100.*correct/total
 
 
-def test(net, criterion, testloader, device, epoch, loss_acc_path, modelpath, saveall=False):
+def test(net, criterion, testloader, device, epoch, modelpath, modelfile, saveall=False):
     
     global best_acc
     net.eval()
@@ -80,9 +80,7 @@ def test(net, criterion, testloader, device, epoch, loss_acc_path, modelpath, sa
         }
         if not os.path.isdir(modelpath):
             os.mkdir(modelpath)
-        if not os.path.isdir(loss_acc_path):
-            os.mkdir(loss_acc_path)
-        torch.save(state, modelpath + modelfile[:-3]+str(epoch)+modelfile[-3:])
+        torch.save(state, modelpath + modelfile[:-3]+"_"+str(epoch)+modelfile[-3:])
         torch.save(state, modelpath + modelfile )
         best_acc = acc
     # Otherwise only save the best one
@@ -95,9 +93,7 @@ def test(net, criterion, testloader, device, epoch, loss_acc_path, modelpath, sa
         }
         if not os.path.isdir(modelpath):
             os.mkdir(modelpath)
-        if not os.path.isdir(loss_acc_path):
-            os.mkdir(loss_acc_path)
-        torch.save(state, modelpath + modelfile[:-3]+str(epoch)+modelfile[-3:])
+        torch.save(state, modelpath + modelfile[:-3]+"_"+str(epoch)+modelfile[-3:])
         torch.save(state, modelpath + modelfile )
         best_acc = acc
         
@@ -162,7 +158,7 @@ def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_
             y_valid_loss = np.append(y_valid_loss, valid_loss)
             y_valid_acc = np.append(y_valid_acc, prec1)
             
-            np.save(loss_acc_file, np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))
+            np.save(loss_acc_path+loss_acc_file, np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))
         stop_time = time.time()
         print(f"TIME collapsed in epoch {epoch} is {stop_time - start_time} sec.")
 
