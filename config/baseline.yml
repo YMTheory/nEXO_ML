@@ -2,7 +2,7 @@ save_dir: train_pid
 data:
   name: nexo
   h5file: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/test.h5
-  csvfile: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/test0.csv
+  csvfile: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/test.csv
   loss_acc_file: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/training_outputs/loss_acc_preact_resnet18_largersample_0627.npy
   modeldir: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens
   modelfile: ckpt_preact_resnet18_largesize_0627.t7
@@ -19,7 +19,7 @@ fit:
     lr_decay: 0.99
     optimizer: Adam
     loss: MSE 
-  epochs: 2
+  epochs: 10
   patience: 1000
-  batch_size: 200
+  batch_size: 400
 
