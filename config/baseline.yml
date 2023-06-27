@@ -3,8 +3,9 @@ data:
   name: nexo
   h5file: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/test.h5
   csvfile: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/test.csv
-  loss_acc_file: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/training_outputs/loss_acc_preact_resnet18_largersample_0627.npy
-  modeldir: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens
+  loss_acc_path: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/training_outputs/
+  loss_acc_file: loss_acc_preact_resnet18_largersample_0627
+  modelpath: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/
   modelfile: ckpt_preact_resnet18_largesize_0627.t7
   input_shape:
   - 250
