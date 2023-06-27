@@ -1,0 +1,5 @@
+# ignore checkpoint files and middle files
+
+training_outputs/
+checkpoint_sens/
+
