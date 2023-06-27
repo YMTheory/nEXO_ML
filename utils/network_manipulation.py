@@ -1,6 +1,8 @@
 import numpy as np
 import time
 import torch
+import torch.nn as nn
+import os
 
 """
 Manipulating network in this module: training, test...
@@ -146,7 +148,7 @@ def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_
 
             # Evaluate on validationset
             try:
-                valid_ave_loss, valid_ave_acc = test(net, criterion, validation_loader, device, epoch, saveall=saveall)
+                valid_loss, prec1, score = test(net, criterion, validation_loader, device, epoch, saveall=saveall)
             except Exception as e:
                 print("Error in validation routine!")
                 print(e.message)
@@ -156,7 +158,7 @@ def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_
                 
             print("Test[%d]: Result* Loss %.3f\t Precision: %.3f"%(epoch, valid_loss, prec1))
             
-            #test_score.append(score)
+            test_score.append(score)
             y_valid_loss = np.append(y_valid_loss, valid_loss)
             y_valid_acc = np.append(y_valid_acc, prec1)
             
