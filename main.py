@@ -62,7 +62,9 @@ if __name__ == '__main__' :
 
     # preparing data
     print('\n===> Preparing dataset...')
-    train_loader, validation_loader = prepare_input_data(h5_path, csv_path, input_shape[2], batch_size)
+    train_loader, validation_loader = prepare_input_data(h5_path, csv_path, input_shape[2], batch_size, dtb=False)
+    print("Length of the train_loader:", len(train_loader))
+    print("Length of the val_loader:", len(validation_loader))
 
     print(f'\n===> Buiding model {model_name}...')
     if model_name == "resnet18":

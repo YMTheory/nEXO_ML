@@ -92,7 +92,7 @@ if __name__ == '__main__' :
     ###############################################################
     # preparing data
     print('\n===> Preparing dataset...')
-    train_loader, validation_loader = prepare_input_data(h5_path, csv_path, input_shape[2], batch_size, num_workers=num_workers)
+    train_loader, validation_loader = prepare_input_data(h5_path, csv_path, input_shape[2], batch_size, dtb=True, num_workers=num_workers)
     print (f'memory usage： {psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024 :.4f} GB' ) 
     print(f"batch_size = {batch_size}"  )
     #print(f"dataset_size = {dataset_size:d}»D"  )
