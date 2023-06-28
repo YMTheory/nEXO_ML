@@ -3,7 +3,10 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.utils.data as data
+
 from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data.distributed import DistributedSampler
+from torch.utils.data import Dataset, DataLoader, random_split
 
 class StripData(data.Dataset):
     def __init__(self, h5_path, csv_path, n_channels=2):
@@ -25,26 +28,47 @@ class StripData(data.Dataset):
 
 
 
-def prepare_input_data(h5_path, csv_path, n_channels, batch_size, validation_split=0.2):
+def prepare_input_data(h5_path, csv_path, n_channels, batch_size, num_workers=0, validation_split=0.2):
     nEXODataset = StripData(h5_path, csv_path, n_channels)
     datasize = len(nEXODataset)
     print(f"Total data sample size = {datasize}, where {1-validation_split} for training and {validation_split} for validation.")
 
-    # shuffling dataset:
-    indices = list(range(datasize))
-    split = int(np.floor(validation_split * datasize))
-    shuffle_dataset = True
-    random_seed = 61
-    if shuffle_dataset:
-        np.random.seed(random_seed)
-        np.random.shuffle(indices)
-    train_indices, val_indices = indices[split:], indices[:split]
+    # method 1
+    ## # shuffling dataset:
+    ## indices = list(range(datasize))
+    ## split = int(np.floor(validation_split * datasize))
+    ## shuffle_dataset = True
+    ## random_seed = 61
+    ## if shuffle_dataset:
+    ##     np.random.seed(random_seed)
+    ##     np.random.shuffle(indices)
+    ## train_indices, val_indices = indices[split:], indices[:split]
 
-    # Creating PyTorch data samplers and loaders
-    train_sampler =  SubsetRandomSampler(train_indices)
-    validation_sampler = SubsetRandomSampler(val_indices)
-    train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=train_sampler, num_workers=0)
-    validation_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=validation_sampler, num_workers=0)
+    ## # Creating PyTorch data samplers and loaders
+    ## train_sampler =  SubsetRandomSampler(train_indices)
+    ## validation_sampler = SubsetRandomSampler(val_indices)
+    ## train_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=train_sampler, num_workers=num_workers)
+    ## valid_loader = torch.utils.data.DataLoader(nEXODataset, batch_size=batch_size, sampler=validation_sampler, num_workers=num_workers)
 
-    return train_loader, validation_loader
+    # method 2: DistributedSampler
+    train_size = int((1-validation_split) * datasize)
+    valid_size = int(datasize - train_size)
+
+    train_dataset, valid_dataset = random_split(nEXODataset, [train_size, valid_size])
+    #train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE,
+    #                          num_workers=n_workers, shuffle=True, pin_memory=True)
+    #----- GPU Parallel: (3)-1 DistributedSampler 
+    #                    https://github.com/laisimiao/classification-cifar10-pytorch/blob/master/main_ddp.py
+    #                BatchSampler  https://www.zhihu.com/search?type=content&q=SyncBatchNorm
+    sampler = DistributedSampler(train_dataset)  
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    test_sampler = torch.utils.data.distributed.DistributedSampler(valid_dataset)
+    train_batch_sampler=torch.utils.data.BatchSampler(train_sampler, batch_size, drop_last=True)
+    
+    train_loader = DataLoader(train_dataset,  batch_sampler=train_batch_sampler, 
+                          num_workers=n_workers, shuffle=True, pin_memory=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size,  sampler=test_sampler,
+                         num_workers=n_workers, shuffle=True, pin_memory=True, drop_last=True)
+
+    return train_loader, valid_loader
 
