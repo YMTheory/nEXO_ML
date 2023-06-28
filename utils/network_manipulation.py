@@ -160,18 +160,18 @@ def train_net(start_epoch, epochs, device, lr, net, criterion, optimizer, train_
             
             np.save(loss_acc_path+loss_acc_file, np.array([y_train_loss, y_train_acc, y_valid_loss, y_valid_acc, test_score], dtype=object))
         stop_time = time.time()
-        print(f"TIME collapsed in epoch {epoch} is {stop_time - start_time} sec.")
+        print(f"TIME collapsed in epoch {epoch} is {stop_time - start_time}Msec.")
 
 
 
-def resume_model(modelpath, modelfile):
+def resume_model(net, device, modelpath, modelfile):
     # Load checkpoint
     print("===> Resuming from checkpoint...")
     assert os.path.isdir(modelpath), "Error: no checkpoint directory found!"
     if device == 'cuda':
-        checkpoint = torch.load(modelpath + '/' + modelfile)
+        checkpoint = torch.load(modelpath + modelfile)
     else:
-        checkpoint = torch.load(modelpath + '/' + modelfile, map_location=torch.device('cpu') )
+        checkpoint = torch.load(modelpath + modelfile, map_location=torch.device('cpu') )
     net.load_state_dict(checkpoint['net'])
     best_acc = checkpoint['acc']
     start_epoch = checkpoint['epoch'] + 1

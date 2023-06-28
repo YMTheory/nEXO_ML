@@ -87,8 +87,8 @@ if __name__ == '__main__' :
         
 
     ## If the action is resume, then load previous trained model :
-    if args.resume and os.path.exists('./checkpoint_sens/ckpt.t7'):
-        net, best_acc, start_epoch = resume_model(modeldir, modelfile)
+    if args.resume and os.path.exists(modelpath + modelfile):
+        net, best_acc, start_epoch = resume_model(net, device, modelpath, modelfile)
 
     # traing network
     print(f"\n===> Training network {model_name}...")
