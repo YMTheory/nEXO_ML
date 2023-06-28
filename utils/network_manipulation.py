@@ -16,8 +16,20 @@ def adjust_learning_rate(optimizer, epoch, lr):
         param_group['lr'] = lr
 
 
+#https://www.zhihu.com/search?type=content&q=SyncBatchNorm       
+def reduce_value(value, average=True):
+    world_size = torch.distributed.get_world_size()
+    if world_size < 2:  # 单GPU的情况
+        return value
+    with torch.no_grad():
+        torch.distributed.all_reduce(value)   # 对不同设备之间的value求和
+        if average:  # 如果需要求平均，获得多块GPU计算loss的均值
+            value /= world_size
+    return value        
+ 
 
-def train(net, criterion, optimizer, trainloader, device, epoch):
+
+def train(net, criterion, optimizer, trainloader, device, epoch, grad_clip=False):
     net.train()
     train_loss = 0
     correct = 0
@@ -28,8 +40,12 @@ def train(net, criterion, optimizer, trainloader, device, epoch):
         outputs = net(inputs)
         loss = criterion(outputs, targets)
         loss.backward()
+        if grad_clip:
+            nn.utils.clip_grad_value_(net.parameters(), grad_clip)
+
         optimizer.step()
 
+        loss = reduce_value(loss, average=True) # not work in one GPU, get average loss in multi GPU.
         train_loss += loss.item()
         _, predicted = outputs.max(1)
         total += targets.size(0)
@@ -54,6 +70,8 @@ def test(net, criterion, testloader, device, epoch, modelpath, modelfile, saveal
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = net(inputs)
             loss = criterion(outputs, targets)
+
+            loss = reduce_value(loss, average=True)
 
             test_loss += loss.item()
             _, predicted = outputs.max(1)
