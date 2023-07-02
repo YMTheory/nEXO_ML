@@ -1,9 +1,3 @@
-# 22.07.07 from: CoAtNet  
-#   https://github.com/chinhsuanwu/coatnet-pytorch
-#   https://arxiv.org/abs/2110.02178
-#   https://arxiv.org/pdf/2106.04803.pdf
-# borrowed from liu zhen
-
 import torch
 import torch.nn as nn
 
@@ -221,19 +215,8 @@ class CoAtNet(nn.Module):
         self.s4 = self._make_layer(
             block[block_types[3]], channels[3], channels[4], num_blocks[4], (ih // 32, iw // 32))
 
-        #self.pool = nn.AvgPool2d(ih // 32, 1)
-        self.pool = nn.AvgPool2d(ih // 32,iw // 32), 1
+        self.pool = nn.AvgPool2d(ih // 32, 1)
         self.fc = nn.Linear(channels[-1], num_classes, bias=False)
-        #self.fc = nn.Sequential(
-        #    #nn.Linear(768, 128),
-        #    #nn.BatchNorm1d(128),
-        #    #nn.ReLU(),
-        #    #nn.Dropout(0.2),
-        #    nn.Linear(channels[-1], num_classes, bias=False),
-        #    nn.Tanh()    #[-1,1]
-        #    #nn.Sigmoid() #[0,1]
-        #    )
-
 
     def forward(self, x):
         x = self.s0(x)
@@ -312,4 +295,3 @@ if __name__ == '__main__':
     net = coatnet_4()
     out = net(img)
     print(out.shape, count_parameters(net))
-
