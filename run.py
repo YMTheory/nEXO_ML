@@ -135,12 +135,13 @@ def main():
                           num_workers=NUM_WORKERS, shuffle=False, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE,  sampler=test_sampler,
                          num_workers=NUM_WORKERS, shuffle=False, pin_memory=True, drop_last=True)
-    print (f'memory usage： {psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024 :.4f} GB' ) 
+    print(f'memory usage： {psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024 :.4f} GB' ) 
     print(f"batch_size = {BATCH_SIZE:d}"  )
     print(f"dataset_size = {dataset_size:d}»D"  )
     print("dataset[0][0].size(): ",full_data[0][0].shape )    
     print("Length of the train_loader:", len(train_loader))
     print("Length of the val_loader:", len(test_loader))
+    print("Memory occupied after data loader: ", torch.cuda.max_memory_allocated(device))
     ##images, labels = next(iter(test_loader))
     ##print("images.shape: ",images.shape)
     ##print("labels.shape: ",labels.shape)
@@ -158,7 +159,8 @@ def main():
         num_blocks = [2, 2, 6, 14, 2]           # L
         channels = [128, 128, 256, 512, 1026]   # D
         Nlabels = 2
-        net = CoAtNet((256, 256), 2, num_blocks, channels, num_classes=Nlabels)        
+        #net = CoAtNet((INPUT_SHAPE[0], INPUT_SHAPE[1]), INPUT_SHAPE[2], num_blocks, channels, num_classes=Nlabels)        
+        net = CoAtNet((256, 256), 2, num_blocks, channels, num_classes=Nlabels)
     else:
         raise ValueError('Unknown network architecture.')
           
@@ -189,6 +191,10 @@ def main():
     if torch.cuda.device_count() > 1:    
         #model = DDP(model)
         net = DDP(net, find_unused_parameters=True, device_ids=[args.local_rank], output_device=args.local_rank)    
+
+        #for name, param in net.named_parameters():
+        #    print(name, param.shape)
+
     #'''
     #if args.local_rank == 0:        
     #    summary(net, input_size=(INPUT_SHAPE[2], INPUT_SHAPE[0], INPUT_SHAPE[1]))
@@ -202,7 +208,7 @@ def main():
     print('Optimizer name: ', optim_name)
 
     # define learning rate scheduler
-    scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=MAX_LR, final_div_factor=DIV_Factor, epochs=EPOCHS, steps_per_epoch=len(train_loader))
+    #scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=MAX_LR, final_div_factor=DIV_Factor, epochs=EPOCHS, steps_per_epoch=len(train_loader))
         
     
     # 22.04.14 https://efficientdl.com/faster-deep-learning-in-pytorch-a-guide/
@@ -222,17 +228,32 @@ def main():
     epoch_best_loss = 1e2
     
     epoch_Learning_Rates = []
+    print(f"Memory occupied after model building:  {torch.cuda.max_memory_allocated(device) / 1024/1024/1024: .4f} GB.")
+
+    # 训练前获取初始显存占用情况
+    initial_allocated = torch.cuda.memory_allocated()
+    initial_cached = torch.cuda.memory_reserved()
+    # 打印显存占用情况
+    print(f"Initial allocated: {initial_allocated / 1024**3:.2f} GB, Cached: {initial_cached / 1024**3:.2f} GB")
+
         
     # start training
     for epoch in range(EPOCHS):
         start =time.time()
         #----- GPU Parallel: (3)-2 DistributedSampler 
         sampler.set_epoch(epoch)
+
+        # 获取显存占用情况
+        current_allocated = torch.cuda.memory_allocated()
+        current_cached = torch.cuda.memory_reserved()
+
+        print(f"Epoch {epoch}: Allocated: {current_allocated / 1024**3:.2f} GB, Cached: {current_cached / 1024**3:.2f} GB")
         
         # train, test model
         #train_losses, train_acc, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)
         #test_losses, test_acc                       = validation(net, device, optimizer, criterion, test_loader)
-        train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)
+        train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scaler, grad_clip=GRAD_CLIP)
+        #train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)  # scheduling learning rate
         test_losses                      = validation(net, device, optimizer, criterion, test_loader)
         
         #scheduler.step()        
@@ -243,8 +264,8 @@ def main():
                 epoch_best=epoch
                 #https://discuss.pytorch.org/t/how-to-save-the-best-model/84608 
                 #----- GPU Parallel: (1) local_rank
-                torch.save(net.state_dict(), os.path.join(modelpath, model_name+"_best-model0-parameters.pt"))  
-                torch.save(net.module.state_dict(), os.path.join(modelpath, model_name+"_best-model-parameters.pt"))
+                torch.save(net.state_dict(), os.path.join(modelpath, model_name+f"_best-model0-parameters_smallLR_const{MAX_LR:.1e}.pt"))  
+                torch.save(net.module.state_dict(), os.path.join(modelpath, model_name+f"_best-model-parameters_smallLR_const{MAX_LR:.1e}.pt"))
             # save results
             epoch_Learning_Rates.append(Learning_rate)
     
@@ -266,13 +287,12 @@ def main():
         B = np.array(epoch_test_losses)
         #C = np.array(epoch_train_acc)
         #D = np.array(epoch_test_acc)
-        np.save(os.path.join(loss_acc_path, model_name+"_T"+str(len(train_loader))+"_epoch_Learning_Rates.npy" ), LR)    
-        np.save(os.path.join(loss_acc_path, model_name+"_N"+str(EPOCHS)+"_Ntrain_losses.npy" ), A)
-        np.save(os.path.join(loss_acc_path, model_name+"_N"+str(EPOCHS)+"_Ntest_losses.npy" ),  B)
+        np.save(os.path.join(loss_acc_path, model_name+f"_smallLR_const{MAX_LR:.1e}_T"+str(len(train_loader))+"_epoch_Learning_Rates.npy" ), LR)    
+        np.save(os.path.join(loss_acc_path, model_name+f"_smallLR_const{MAX_LR:.1e}_N"+str(EPOCHS)+"_Ntrain_losses.npy" ), A)
+        np.save(os.path.join(loss_acc_path, model_name+f"_smallLR_const{MAX_LR:.1e}_N"+str(EPOCHS)+"_Ntest_losses.npy" ),  B)
         #np.save(os.path.join(loss_acc_path, model_name+"_N"+str(EPOCHS)+"_Ntrain_acc.npy" ),    C)
         #np.save(os.path.join(loss_acc_path, model_name+"_N"+str(EPOCHS)+"_Ntest_acc.npy" ),     D)
         print("SAVED!") 
     
     
 main()
-           
