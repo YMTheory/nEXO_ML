@@ -1,0 +1,31 @@
+save_dir: train_pid
+data:
+  name: nexo
+  h5file: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/nexo_v0.h5
+  csvfile: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/nexo_v0.csv
+  loss_acc_path: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/training_outputs/
+  loss_acc_file: loss_acc_coatnet_largersample_0627
+  modelpath: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/
+  modelfile: ckpt_coatnet_largesize_0627.t7
+  train_split: 0.8
+  input_shape:
+  - 250
+  - 250
+  - 2
+model:
+  name: coatnet
+
+fit:
+  compile:
+    initial_lr: 0.001
+    lr_decay: 0.99
+    weight_decay: 0.0001
+    optimizer: AdamW
+    loss: CrossEntropyLoss
+    DIV_factor: 10000
+    grad_clip: 0.3
+  epochs: 30
+  patience: 1000
+  batch_size: 64
+  num_workers: 1
+  log_interval: 20
