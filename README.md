@@ -9,4 +9,11 @@ MC files from nEXO offline simulation, converted to 2D images (utils/data_manipu
 
 ## Network
 
+ResNet network: networks/resnet_example.py (CNN)
+
+CoAtNet network: networks/coatnet.py (CNN + Transformer)
+
 ## Configuration
+All configuration paramters like filename, model parameters... are configured by reading yaml files.
+
+
