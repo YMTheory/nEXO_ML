@@ -7,6 +7,8 @@ import torch.utils.data as data
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import Dataset, DataLoader, random_split
+import torchvision.transforms as transforms
+
 
 class StripData(data.Dataset):
     def __init__(self, h5_path, csv_path, n_channels=2):
@@ -24,7 +26,14 @@ class StripData(data.Dataset):
         eventtype = 1 if "bb0n" in self.datainfo[idx] else 0 
         img = np.array(dset_entry)[:, :, :self.n_channels]
         img = np.transpose(img, (2, 0, 1))
-        return torch.from_numpy(img).type(torch.FloatTensor), eventtype
+        img[img==-100] = 0.
+        img_tensor = torch.from_numpy(img).type(torch.FloatTensor)
+        mean, std = torch.mean(img_tensor), torch.std(img_tensor)
+        preprocess = transforms.Compose([transforms.Resize((256, 256)),  transforms.Normalize(mean, std) ])
+        #preprocess = transforms.Resize((224, 224))
+        img_tensor = preprocess(img_tensor) 
+        #print(img_tensor)
+        return img_tensor, eventtype
 
 
 
