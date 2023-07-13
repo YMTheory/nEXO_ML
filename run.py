@@ -33,14 +33,13 @@ from torch.optim import lr_scheduler
 from utils.data_loader import StripData
 from utils.data_loader import prepare_input_data
 #from utils.network_manipulation import train_net, resume_model
-from utils.network_manipulation_parallel import train, validation
+from utils.network_manipulation_parallel import train, validation, test_accuracy
 
 # load networks
 from networks.resnet_example import resnet18
 from networks.preact_resnet import PreActResNet18
 from networks.coatnet import CoAtNet
-from networks.simple_example import SimpleCNN, SimpleCNN_v1
-from networks.simple_example import get_intermediate_output
+from networks.simple_example import SimpleCNN
 
 #import shap
 
@@ -177,7 +176,7 @@ def main():
         net = CoAtNet((INPUT_SHAPE[0], INPUT_SHAPE[1]), INPUT_SHAPE[2], num_blocks, channels, num_classes=INPUT_SHAPE[2])        
         #net = CoAtNet((256, 256), 2, num_blocks, channels, num_classes=Nlabels)
     elif model_name == 'simple':
-        net = SimpleCNN_v1()
+        net = SimpleCNN()
         #net.relu1.register_forward_hook(get_intermediate_output)
         #net.relu2.register_forward_hook(get_intermediate_output)
         #net.fc1.register_forward_hook(get_intermediate_output)
@@ -187,10 +186,13 @@ def main():
           
 
     if args.resume:
-        print('\n===> Load pre-trained model...')
-        checkpoint = torch.load('/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/resnet18_best-model-parameters_smallLR_const1.0e-06_batch400_0705.pt')
+
+        resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/resnet18_best-model-parameters_larger_samples_0712_4gpu_noimagescale.pt'
+        print(f'\n===> Load pre-trained model {resumed_model}.')
+
+        checkpoint = torch.load(resumed_model)
         net.load_state_dict(checkpoint)
-        
+
     #####=========================================
     ## GPU Parallel
     ## method 1: DataParallel
@@ -332,30 +334,34 @@ def main():
             print("Total test data size: ", len(test_dataset))
             test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, num_workers=0)
 
-            net.eval()
+            test_accuracy(net, device, test_loader)
 
-            total, correct = 0, 0
-            score = []
-            with torch.no_grad():
-                for batch_idx, (images, labels) in enumerate(test_loader):
-                    images = images.to(device)
-                    labels = labels.to(device)
+            # ---------------------------------------------- #
+            #net.eval()
 
-                    outputs = net(images)
-                    _, predicted = outputs.max(1)
-                    total += labels.size(0)
-                    correct += predicted.eq(labels).sum().item()
+            #total, correct = 0, 0
+            #score = []
+            #with torch.no_grad():
+            #    for batch_idx, (images, labels) in enumerate(test_loader):
+            #        images = images.to(device)
+            #        labels = labels.to(device)
 
-                    softmax = nn.Softmax(dim=0)
-                    for m in range(outputs.size(0)):
-                        score.append([softmax(outputs[m])[1].item(), labels[m].item()])
+            #        outputs = net(images)
+            #        _, predicted = outputs.max(1)
+            #        total += labels.size(0)
+            #        correct += predicted.eq(labels).sum().item()
 
-                    print(f"Batch [{batch_idx+1} / {len(test_loader)}] has average accuracy: {correct/total:.2f}.")
-                acc = 1. * correct / total 
+            #        softmax = nn.Softmax(dim=0)
+            #        for m in range(outputs.size(0)):
+            #            score.append([softmax(outputs[m])[1].item(), labels[m].item()])
 
-                print(f"Accuracy on the test dataset is {acc:.2f}")
+            #        print(f"Batch [{batch_idx+1} / {len(test_loader)}] has average accuracy: {correct/total:.2f}.")
+            #    acc = 1. * correct / total 
+
+            #    print(f"Accuracy on the test dataset is {acc:.2f}")
         
-            np.save(os.path.join(loss_acc_path, model_name+f'test_score_1e-6LR_resumed_totalEpoch60.npy'), score)
+            #np.save(os.path.join(loss_acc_path, model_name+f'test_score_1e-6LR_resumed_totalEpoch60.npy'), score)
+            # ---------------------------------------------- #
 
     #elif args.mode == 'shap':
     #    if not args.resume:

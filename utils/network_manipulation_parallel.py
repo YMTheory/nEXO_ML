@@ -37,7 +37,6 @@ def train(log_interval, model, device, train_loader, optimizer, criterion, epoch
         # Forward pass
         outputs = model(images) # output here is 2D array (scores for each class) with length = batch_size.
         loss = criterion(outputs, labels) # loss here is 1 digit calculated from all batch data.
-        #print(f'Loss for batch {i} is {loss}.')
          
         # Backward and optimize        
         optimizer.zero_grad()        
@@ -46,6 +45,7 @@ def train(log_interval, model, device, train_loader, optimizer, criterion, epoch
         # Gradient clipping
         if grad_clip: 
             nn.utils.clip_grad_value_(model.parameters(), grad_clip)      
+            #nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.001)      
 
         optimizer.step()
         
@@ -126,4 +126,35 @@ def validation(model, device, optimizer, criterion, test_loader):
 
     return epoch_loss
             
+
+
+def test_accuracy(net, device, test_loader):
+    net.eval()
+
+    total, correct = 0, 0
+    score = []
+
+    with torch.no_grad():
+        for batch_idx, (images, labels) in enumerate(test_loader):
+            images = images.to(device)
+            labels = labels.to(device)
+
+            outputs = net(images)
+            _, predicted = outputs.max(1)
+            
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+
+            softmax = nn.Softmax(dim=0)
+            for m in range(outputs.size(0)):
+                score.append([softmax(outputs[m])[1].item(), labels[m].item()])
+
+            print(f"Batch [{batch_idx+1} / {len(test_loader)}] has average accuracy: {correct/total:.2f}.")
+            acc = 1. * correct / total 
+
+        print(f"Accuracy on the test dataset is {acc:.2f}")
+     
+    np.save(os.path.join(loss_acc_path, model_name+f'test_score_1e-6LR_resumed_totalEpoch60.npy'), score)
+
+
 
