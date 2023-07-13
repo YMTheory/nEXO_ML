@@ -24,15 +24,43 @@ class StripData(data.Dataset):
     def __getitem__(self, idx):
         dset_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
         eventtype = 1 if "bb0n" in self.datainfo[idx] else 0 
+        img = np.array(dset_entry)[:, :self.n_channels, :]
+        img = np.transpose(img, (1, 2, 0))
+        ##img[img==-100] = 0.
+        # preprocessing ##############
+        img_tensor = torch.from_numpy(img).type(torch.FloatTensor)
+        ##bkg = torch.randn(img_tensor.shape) * 200
+        ##img_tensor = img_tensor + bkg
+        ##preprocess = transforms.Compose([transforms.Resize((256, 256)),  transforms.Normalize(means, stds) ])
+        #preprocess = transforms.Resize((256, 256))
+        #img_tensor = preprocess(img_tensor) 
+        ##############################
+        return img_tensor, eventtype
+
+
+
+class StripBigData(data.Dataset):
+    def __init__(self, h5_path, csv_file, n_channels=2):
+        csv_info        = pd.read_csv(csv_file, header=None)
+        self.h5_list    = np.asarray(csv_info.iloc[:, 0])
+        self.groupname  = np.asarray(csv_info.iloc[:, 1])
+        self.datainfo   = np.asarray(csv_info.iloc[:, 2])
+        self.n_channels = n_channels
+
+    def __len__(self):
+        return len(self.datainfo)
+
+    def __getitem__(self, idx):
+        fileName = self.h5_list[idx]
+        print(self.h5_list[idx], self.groupname[idx], self.datainfo[idx])
+        with h5.File(fileName, 'r') as h5_file:
+            dset_entry = h5_file[self.groupname[idx]][self.datainfo[idx]]
+        eventtype = 1 if "bb0n" in self.datainfo[idx] else 0 
         img = np.array(dset_entry)[:, :, :self.n_channels]
         img = np.transpose(img, (2, 0, 1))
         img[img==-100] = 0.
-        img_tensor = torch.from_numpy(img).type(torch.FloatTensor)
-        mean, std = torch.mean(img_tensor), torch.std(img_tensor)
-        preprocess = transforms.Compose([transforms.Resize((256, 256)),  transforms.Normalize(mean, std) ])
-        #preprocess = transforms.Resize((224, 224))
+        preprocess = transforms.Resize((256, 256))
         img_tensor = preprocess(img_tensor) 
-        #print(img_tensor)
         return img_tensor, eventtype
 
 
