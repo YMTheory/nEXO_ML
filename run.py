@@ -99,6 +99,7 @@ def main():
     print("Number of features: ",   INPUT_SHAPE[2])
     print("Weight decay: ",         WEIGHT_DECAY)
     print("Gradient clip: ",        GRAD_CLIP)
+    print("Resume model: ",         args.resume)
 
 
     ###############################################################
@@ -121,7 +122,10 @@ def main():
  
     ###############################################################
     # prepare data loader
-    full_data = StripData(h5_path, csv_path, INPUT_SHAPE[2])
+    if model_name == 'coatnet':
+        full_data = StripData(h5_path, csv_path, INPUT_SHAPE[2], process=True)
+    else:
+        full_data = StripData(h5_path, csv_path, INPUT_SHAPE[2], process=False)
     dataset_size = len(full_data)
 
     train_size = int(len(full_data)*train_split)  
@@ -186,8 +190,12 @@ def main():
           
 
     if args.resume:
-
-        resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/resnet18_best-model-parameters_larger_samples_0712_4gpu_noimagescale.pt'
+        if model_name == "resnet18":
+            resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/resnet18_best-model-parameters_larger_samples_0713_4gpu_noimagescale_epoch10to20_resume.pt'
+        elif model_name == "coatnet":
+            resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-_epoch5_parameters_v0_0717_larger_sample_256resize_nonorm_resumed_8to16epoch.pt'
+            #resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-parameters_v0_0715_larger_sample_256resize_nonorm_resumed_6to13epoch.pt'
+            #resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-parameters_v0_0713_larger_sample_256resize_nonorm.pt'
         print(f'\n===> Load pre-trained model {resumed_model}.')
 
         checkpoint = torch.load(resumed_model)
@@ -238,7 +246,7 @@ def main():
         print('Optimizer name: ', optim_name)
 
         # define learning rate scheduler
-        #scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=MAX_LR, final_div_factor=DIV_Factor, epochs=EPOCHS, steps_per_epoch=len(train_loader))
+        scheduler = lr_scheduler.OneCycleLR(optimizer, max_lr=MAX_LR, final_div_factor=DIV_Factor, epochs=EPOCHS, steps_per_epoch=len(train_loader))
             
         
         # 22.04.14 https://efficientdl.com/faster-deep-learning-in-pytorch-a-guide/
@@ -283,8 +291,8 @@ def main():
             # train, test model
             #train_losses, train_acc, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)
             #test_losses, test_acc                       = validation(net, device, optimizer, criterion, test_loader)
-            train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scaler, grad_clip=GRAD_CLIP)
-            #train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)  # scheduling learning rate
+            ## train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scaler, grad_clip=GRAD_CLIP) # 0719
+            train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)  # scheduling learning rate
             test_losses                      = validation(net, device, optimizer, criterion, test_loader)
             
             #scheduler.step()        
@@ -295,8 +303,8 @@ def main():
                     epoch_best=epoch
                     #https://discuss.pytorch.org/t/how-to-save-the-best-model/84608 
                     #----- GPU Parallel: (1) local_rank
-                    torch.save(net.state_dict(), os.path.join(modelpath, model_name+f"_best-model0-parameters_{args.suffix}.pt"))  
-                    torch.save(net.module.state_dict(), os.path.join(modelpath, model_name+f"_best-model-parameters_{args.suffix}.pt"))
+                    torch.save(net.state_dict(), os.path.join(modelpath, model_name+f"_best-model0-_epoch{epoch}_parameters_{args.suffix}.pt"))  
+                    torch.save(net.module.state_dict(), os.path.join(modelpath, model_name+f"_best-model-_epoch{epoch}_parameters_{args.suffix}.pt"))
                 # save results
                 epoch_Learning_Rates.append(Learning_rate)
         
@@ -320,7 +328,7 @@ def main():
             #D = np.array(epoch_test_acc)
             np.save(os.path.join(loss_acc_path, model_name+f"_Nepoch{EPOCHS}_batch{BATCH_SIZE}_LearningRates_{args.suffix}.npy" ), LR)    
             np.save(os.path.join(loss_acc_path, model_name+f"_Ntrain_Nepoch{EPOCHS}_losses_batch{BATCH_SIZE}_{args.suffix}.npy" ), A)
-            np.save(os.path.join(loss_acc_path, model_name+f"_Ntest_losses_Nepoch{EPOCHS}_batch{BATCH_SIZE}_{args.suffix}.npy" ),  B)
+            np.save(os.path.join(loss_acc_path, model_name+f"_Ntest_Nepoch{EPOCHS}_losses_batch{BATCH_SIZE}_{args.suffix}.npy" ), B)
             #np.save(os.path.join(loss_acc_path, model_name+"_N"+str(EPOCHS)+"_Ntrain_acc.npy" ),    C)
             #np.save(os.path.join(loss_acc_path, model_name+"_N"+str(EPOCHS)+"_Ntest_acc.npy" ),     D)
             print("SAVED!") 
@@ -330,11 +338,15 @@ def main():
             print('>>>>> Error: do not set model path to resume !!!')
             return 
         else:
-            test_dataset = StripData(h5_test_path, csv_test_path, n_channels=INPUT_SHAPE[2])
+            if model_name == 'coatnet':
+                test_dataset = StripData(h5_test_path, csv_test_path, n_channels=INPUT_SHAPE[2], process=True)
+            else:
+                test_dataset = StripData(h5_test_path, csv_test_path, n_channels=INPUT_SHAPE[2], process=False)
             print("Total test data size: ", len(test_dataset))
             test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, num_workers=0)
 
-            test_accuracy(net, device, test_loader)
+            score = test_accuracy(net, device, test_loader)
+            np.save(os.path.join(loss_acc_path, model_name+f"_Nepoch{EPOCHS}_batch{BATCH_SIZE}_schedLearningRatesMax{MAX_LR:.1e}_{args.suffix}.npy" ), score)    
 
             # ---------------------------------------------- #
             #net.eval()
