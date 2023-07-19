@@ -1,5 +1,5 @@
 import numpy as np
-
+import os
 import torch
 import torch.nn as nn
 
@@ -14,6 +14,44 @@ def reduce_value(value, average=True):
             value /= world_size
     return value        
  
+def train_lr_sched(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs, lr_sched, scaler, grad_clip=0):
+    model.train()
+
+    n_total_steps = len(train_loader)
+    losses, lrs = [], []
+    epoch_loss = 0
+    
+    for i, (images, labels) in enumerate(train_loader):
+        images = images.to(device)
+        labels = labels.to(device)
+
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        optimizer.zero_grad()
+        scaler.scale(loss).backward()
+        if grad_clip:
+            nn.utils.clip_grad_value_(model.parameters(), grad_clip)
+
+        scaler.step(optimizer)
+        scaler.update()
+        
+        loss = reduce_value(loss, average=True)
+        losses.apped(loss.item())
+        epoch_loss = (np.mean(losses)).tolist()
+        
+        lrs.append( optimizer.param_groups[0]['lr'])
+        lr_sched.step()
+         
+        if (i+1) % log_interval == 0 :
+            print (f'Train Epoch [{epoch+1}/{NUM_EPOCHS}], Step [{i+1}/{n_total_steps}], LR={lrs[-1]:.2E},  Loss: {loss.item():.5f}')
+            
+    print(f'Train Loss:{epoch_loss}')
+
+    return epoch_loss,  lrs
+
+
+
+
         
 def train(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs,  scaler, grad_clip=0):
 #def train(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs, lr_sched, scaler, grad_clip=0):
@@ -149,12 +187,11 @@ def test_accuracy(net, device, test_loader):
             for m in range(outputs.size(0)):
                 score.append([softmax(outputs[m])[1].item(), labels[m].item()])
 
-            print(f"Batch [{batch_idx+1} / {len(test_loader)}] has average accuracy: {correct/total:.2f}.")
+            print(f"Batch [{batch_idx+1} / {len(test_loader)}] has average accuracy: {correct/total:.4f}.")
             acc = 1. * correct / total 
 
         print(f"Accuracy on the test dataset is {acc:.2f}")
      
-    np.save(os.path.join(loss_acc_path, model_name+f'test_score_1e-6LR_resumed_totalEpoch60.npy'), score)
-
+    return score
 
 
