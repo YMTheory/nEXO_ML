@@ -33,7 +33,7 @@ from torch.optim import lr_scheduler
 from utils.data_loader import StripData
 from utils.data_loader import prepare_input_data
 #from utils.network_manipulation import train_net, resume_model
-from utils.network_manipulation_parallel import train, validation, test_accuracy
+from utils.network_manipulation_parallel import train, validation, test_accuracy, train_lr_sched
 
 # load networks
 from networks.resnet_example import resnet18
@@ -93,6 +93,10 @@ def main():
     loss_func       = config['fit']['compile']['loss']
     optim_name      = config['fit']['compile']['optimizer']
 
+    print("Training h5 file: ",     h5_path)
+    print("Training csv file: ",    csv_path)
+    print("Test h5 file: ",         h5_test_path)
+    print("Test csv file: ",        csv_test_path)
     print("Number of epochs: ",     EPOCHS)
     print("Max learning rate: ",    MAX_LR)
     print("Batch size: ",           BATCH_SIZE)
@@ -157,7 +161,7 @@ def main():
     print(f'memory usage： {psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024 / 1024 :.4f} GB' ) 
     print(f"batch_size = {BATCH_SIZE:d}"  )
     print(f"dataset_size = {dataset_size:d}"  )
-    print("dataset[0][0].size(): ",full_data[0][0].shape )    
+    #print("dataset[0][0].size(): ",full_data[0].shape )    
     print("Length of the train_loader:", len(train_loader))
     print("Length of the val_loader:", len(test_loader))
     print("Memory occupied after data loader: ", torch.cuda.max_memory_allocated(device))
@@ -193,7 +197,10 @@ def main():
         if model_name == "resnet18":
             resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/resnet18_best-model-parameters_larger_samples_0713_4gpu_noimagescale_epoch10to20_resume.pt'
         elif model_name == "coatnet":
-            resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-_epoch5_parameters_v0_0717_larger_sample_256resize_nonorm_resumed_8to16epoch.pt'
+            resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-_epoch7_parameters_v0_0721_schedLR_larger_sample_256resize_nonorm_10to20epoch.pt'
+            #resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-_epoch4_parameters_v0_0719__schedLR_larger_sample_256resize_nonorm_0to10epoch.pt'
+            #resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-_epoch3_parameters_v0_0719_larger_sample_256resize_nonorm_resumed_16to24epoch.pt'
+            #resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-_epoch5_parameters_v0_0717_larger_sample_256resize_nonorm_resumed_8to16epoch.pt'
             #resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-parameters_v0_0715_larger_sample_256resize_nonorm_resumed_6to13epoch.pt'
             #resumed_model = '/hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/coatnet_best-model-parameters_v0_0713_larger_sample_256resize_nonorm.pt'
         print(f'\n===> Load pre-trained model {resumed_model}.')
@@ -292,7 +299,7 @@ def main():
             #train_losses, train_acc, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)
             #test_losses, test_acc                       = validation(net, device, optimizer, criterion, test_loader)
             ## train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scaler, grad_clip=GRAD_CLIP) # 0719
-            train_losses, Learning_rate      = train(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)  # scheduling learning rate
+            train_losses, Learning_rate      = train_lr_sched(LOG_INTERVAL, net, device, train_loader, optimizer, criterion, epoch, EPOCHS, scheduler, scaler, grad_clip=GRAD_CLIP)  # scheduling learning rate
             test_losses                      = validation(net, device, optimizer, criterion, test_loader)
             
             #scheduler.step()        
