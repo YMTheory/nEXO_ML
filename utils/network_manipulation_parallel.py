@@ -36,21 +36,44 @@ def train_lr_sched(log_interval, model, device, train_loader, optimizer, criteri
         scaler.update()
         
         loss = reduce_value(loss, average=True)
-        losses.apped(loss.item())
+        losses.append(loss.item())
         epoch_loss = (np.mean(losses)).tolist()
         
         lrs.append( optimizer.param_groups[0]['lr'])
         lr_sched.step()
          
         if (i+1) % log_interval == 0 :
-            print (f'Train Epoch [{epoch+1}/{NUM_EPOCHS}], Step [{i+1}/{n_total_steps}], LR={lrs[-1]:.2E},  Loss: {loss.item():.5f}')
+            print (f'Train Epoch [{epoch+1}/{num_epochs}], batch {i+1} in {n_total_steps}, LR={lrs[-1]:.2E},  loss: {loss.item():.5f}.')
             
     print(f'Train Loss:{epoch_loss}')
 
     return epoch_loss,  lrs
 
 
+def train_gcn(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs, scaler, grad_clip):
+    model.train()
 
+    n_total_steps = len(train_loader)
+    losses = []
+    epoch_loss = 0.
+
+    for i, data in enumerate(train_loader):
+        data = data.to(device)
+        out = model(data.x, data.edge_index, data.edge_attr, data.batch)
+        loss = criterion(out, data.y)
+        optimizer.zero_grad()
+        loss.backward()
+            
+        if grad_clip:
+            nn.utils.clip_grad_value_(model.parameters(), grad_clip)
+
+        optimizer.step()
+        loss = reduce_value(loss, average=True)
+        losses.append(loss.item())
+
+        if (i+1) % log_interval  == 0:
+            print (f'Train Epoch [{epoch+1}/{num_epochs}], batch {i+1} in {n_total_steps},  loss: {loss.item():.5f}.')
+        return losses
 
         
 def train(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs,  scaler, grad_clip=0):

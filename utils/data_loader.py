@@ -11,29 +11,35 @@ import torchvision.transforms as transforms
 
 
 class StripData(data.Dataset):
-    def __init__(self, h5_path, csv_path, n_channels=2):
+    def __init__(self, h5_path, csv_path, n_channels=2, process=False):
         csv_info        = pd.read_csv(csv_path, header=None)
         self.groupname  = np.asarray(csv_info.iloc[:, 0])
         self.datainfo   = np.asarray(csv_info.iloc[:, 1])
         self.h5file     = h5.File(h5_path, 'r')
         self.n_channels = n_channels
+        self.process    = process
 
     def __len__(self):
         return len(self.datainfo)
 
     def __getitem__(self, idx):
         dset_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
-        eventtype = 1 if "bb0n" in self.datainfo[idx] else 0 
-        img = np.array(dset_entry)[:, :self.n_channels, :]
-        img = np.transpose(img, (1, 2, 0))
+        #eventtype = 1 if "bb0n" in self.datainfo[idx] else 0  # labelling for my data format
+        eventtype = 1 if dset_entry.attrs[u'tag']=='e-' else 0 # for zepeng's data format:
+        #img = np.array(dset_entry)[:, :self.n_channels, :]
+        #img = np.transpose(img, (1, 2, 0)) # for my data
+        img = np.array(dset_entry[:, :, :self.n_channels])
+        img = np.transpose(img, (2, 0, 1)) # for zepeng's data
+        print("numpy array shape: ", img.shape)
         ##img[img==-100] = 0.
         # preprocessing ##############
         img_tensor = torch.from_numpy(img).type(torch.FloatTensor)
         ##bkg = torch.randn(img_tensor.shape) * 200
         ##img_tensor = img_tensor + bkg
         ##preprocess = transforms.Compose([transforms.Resize((256, 256)),  transforms.Normalize(means, stds) ])
-        #preprocess = transforms.Resize((256, 256))
-        #img_tensor = preprocess(img_tensor) 
+        if self.process:
+            preprocess = transforms.Resize((256, 256))
+            img_tensor = preprocess(img_tensor) 
         ##############################
         return img_tensor, eventtype
 
