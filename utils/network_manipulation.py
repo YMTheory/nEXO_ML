@@ -73,7 +73,7 @@ def train(log_interval, model, device, train_loader, optimizer, criterion, epoch
 
 
 
-def test(model, device, optimizer, criterion, testloader):
+def test(model, device, criterion, testloader):
     
     model.eval()
 
@@ -83,7 +83,7 @@ def test(model, device, optimizer, criterion, testloader):
         epoch_loss = 0
         corr, total = 0, 0
 
-        for images, labels in test_loader:
+        for images, labels in testloader:
             images = images.to(device)
             labels = labels.to(device)
 
