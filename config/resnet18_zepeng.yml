@@ -1,0 +1,33 @@
+save_dir: train_pid
+data:
+  name: nexo
+  h5file: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/nexo.h5
+  csvfile: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/nexo_train.csv
+  h5testfile: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/nexo.h5
+  csvtestfile: /hpcfs/juno/junogpu/miaoyu/bb0n/dataset/strip_6mm/lzp/nexo_valid.csv
+  loss_acc_path: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/training_outputs/
+  loss_acc_file: loss_acc_resnet18_zepengdata_0811
+  modelpath: /hpcfs/juno/junogpu/miaoyu/bb0n/nEXO_ML/checkpoint_sens/
+  modelfile: ckpt_resnet18_zepengdata_0811.t7
+  train_split: 0.9
+  input_shape:
+  - 200
+  - 255
+  - 2
+model:
+  name: resnet18
+
+fit:
+  compile:
+    initial_lr: 0.000001
+    lr_decay: 0.99
+    weight_decay: 0.0001
+    optimizer: AdamW
+    loss: CrossEntropyLoss
+    DIV_factor: 10000
+    grad_clip: 0.3
+  epochs: 30
+  patience: 1000
+  batch_size: 64
+  num_workers: 1
+  log_interval: 20
