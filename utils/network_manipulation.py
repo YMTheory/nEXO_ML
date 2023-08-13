@@ -101,7 +101,7 @@ def test(model, device, optimizer, criterion, testloader):
     epoch_loss = (np.mean(test_loss)).tolist()
     epoch_acc  = (corr/total).tolist()
 
-    return, epoch_loss, epoch_acc
+    return epoch_loss, epoch_acc
 
 
 
