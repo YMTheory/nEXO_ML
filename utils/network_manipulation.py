@@ -29,93 +29,79 @@ def reduce_value(value, average=True):
  
 
 
-def train(net, criterion, optimizer, trainloader, device, epoch, grad_clip=False):
-    net.train()
-    train_loss = 0
-    correct = 0
-    total = 0
-    for batch_idx, (inputs, targets) in enumerate(trainloader):
-        inputs, targets = inputs.to(device), targets.to(device)
+def train(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs, scaler, grad_clip=0.):
+    
+    model.train()
+
+    n_total_steps = len(train_loader)
+    losses, acc, lrs = [], [], []
+    epoch_loss = 0.
+    corr, total = 0, 0
+    epoch_acc = 0
+
+    for i, (images, labels) in enumerate(train_loader):
+        images = images.to(device)
+        labels = labels.to(device)
+
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        
         optimizer.zero_grad()
-        outputs = net(inputs)
-        loss = criterion(outputs, targets)
         loss.backward()
+
+
         if grad_clip:
-            nn.utils.clip_grad_value_(net.parameters(), grad_clip)
+            nn.utils.clip_grad_value_(model.parameters(), grad_clip)
 
         optimizer.step()
 
-        loss = reduce_value(loss, average=True) # not work in one GPU, get average loss in multi GPU.
-        train_loss += loss.item()
+        losses.append(loss.item())
+
+        lrs.append( optimizer.param_groups[0]['lr'])
+
+        if (i+1) % log_interval  == 0:
+            print (f'Train Epoch [{epoch+1}/{num_epochs}], batch {i+1} in {n_total_steps}, LR={lrs[-1]:.2E},  loss: {loss.item():.5f}.')
+
         _, predicted = outputs.max(1)
         total += targets.size(0)
-        correct += predicted.eq(targets).sum().item()
+        corr += predicted.eq(targets).sum().item()
 
-        print(batch_idx, '/', len(trainloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-            % (train_loss/(batch_idx+1), 100.*correct/total, correct, total))
-    return train_loss/len(trainloader), 100.*correct/total
+    epoch_loss = (np.mean(losses)).tolist()
+    epoch_acc  = (corr/total).tolist()
+    return epoch_loss, lrs, 100.*corr/total
 
 
-def test(net, criterion, testloader, device, epoch, modelpath, modelfile, saveall=False):
+
+
+def test(model, device, optimizer, criterion, testloader):
     
-    global best_acc
-    net.eval()
-    test_loss = 0
-    correct = 0
-    total = 0
-    score = []
-    
+    model.eval()
+
     with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(testloader):
-            inputs, targets = inputs.to(device), targets.to(device)
-            outputs = net(inputs)
-            loss = criterion(outputs, targets)
 
-            loss = reduce_value(loss, average=True)
+        test_loss, test_acc = [], []
+        epoch_loss = 0
+        corr, total = 0, 0
 
-            test_loss += loss.item()
+        for images, labels in test_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+
+            outputs = model(images)
+
+            loss = criterion(outputs, labels)
+            test_loss.append(loss.item())
+
             _, predicted = outputs.max(1)
             total += targets.size(0)
-            correct += predicted.eq(targets).sum().item()
-            softmax = nn.Softmax(dim=0)
-            for m in range(outputs.size(0)):
-                score.append([softmax(outputs[m])[1].item(), targets[m].item()])
-                # score.append([outputs[m][1].item(), targets[m].item()])
-            print(batch_idx, len(testloader), 'Loss: %.3f | Acc: %.3f%% (%d/%d)'
-                % (test_loss/(batch_idx+1), 100.*correct/total, correct, total))
+            corr += predicted.eq(targets).sum().item()
 
-    # Save checkpoint.
-    is_better = False
-    acc = 100.*correct/total
-    
-    # If we want to save all training records
-    if saveall:
-        print ('Saving...')
-        state = {
-            'net': net.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        if not os.path.isdir(modelpath):
-            os.mkdir(modelpath)
-        torch.save(state, modelpath + modelfile[:-3]+"_"+str(epoch)+modelfile[-3:])
-        torch.save(state, modelpath + modelfile )
-        best_acc = acc
-    # Otherwise only save the best one
-    elif acc > best_acc:
-        print ('Saving...')
-        state = {
-            'net': net.state_dict(),
-            'acc': acc,
-            'epoch': epoch,
-        }
-        if not os.path.isdir(modelpath):
-            os.mkdir(modelpath)
-        torch.save(state, modelpath + modelfile[:-3]+"_"+str(epoch)+modelfile[-3:])
-        torch.save(state, modelpath + modelfile )
-        best_acc = acc
-        
-    return test_loss/len(testloader), 100.*correct/total, score
+            test_acc.append(corr/total)
+
+    epoch_loss = (np.mean(test_loss)).tolist()
+    epoch_acc  = (corr/total).tolist()
+
+    return, epoch_loss, epoch_acc
 
 
 
@@ -195,8 +181,6 @@ def resume_model(net, device, modelpath, modelfile):
     start_epoch = checkpoint['epoch'] + 1
 
     return net, best_acc, start_epoch
-
-
 
 
 
