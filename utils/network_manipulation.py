@@ -63,8 +63,8 @@ def train(log_interval, model, device, train_loader, optimizer, criterion, epoch
             print (f'Train Epoch [{epoch+1}/{num_epochs}], batch {i+1} in {n_total_steps}, LR={lrs[-1]:.2E},  loss: {loss.item():.5f}.')
 
         _, predicted = outputs.max(1)
-        total += targets.size(0)
-        corr += predicted.eq(targets).sum().item()
+        total += labels.size(0)
+        corr += predicted.eq(labels).sum().item()
 
     epoch_loss = (np.mean(losses)).tolist()
     epoch_acc  = (corr/total).tolist()
@@ -93,8 +93,8 @@ def test(model, device, criterion, testloader):
             test_loss.append(loss.item())
 
             _, predicted = outputs.max(1)
-            total += targets.size(0)
-            corr += predicted.eq(targets).sum().item()
+            total += labels.size(0)
+            corr += predicted.eq(labels).sum().item()
 
             test_acc.append(corr/total)
 
