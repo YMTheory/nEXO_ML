@@ -29,7 +29,7 @@ def reduce_value(value, average=True):
  
 
 
-def train(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs, scaler, grad_clip=0.):
+def train(log_interval, model, device, train_loader, optimizer, criterion, epoch, num_epochs, grad_clip=0.):
     
     model.train()
 
