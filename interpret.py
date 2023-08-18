@@ -16,7 +16,7 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
 def main():
-    network = 'coatnet'
+    network = 'resnet18'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     if network == 'resnet18':
@@ -31,7 +31,7 @@ def main():
         csvtestfile = '/Users/yumiao/Documents/Works/0nbb/nEXO/ML/dataset/nexo_valid.csv'
         test_dataset = StripData(h5testfile, csvtestfile, n_channels=2, process=False)
         print(f'Total test_dataset length is {len(test_dataset)}.')
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=64, num_workers=0)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32, num_workers=0)
 
     elif network == 'coatnet':
         num_blocks = [2, 2, 6, 14, 2]           # L
@@ -48,11 +48,12 @@ def main():
         csvtestfile = '/Users/yumiao/Documents/Works/0nbb/nEXO/ML/dataset/nexo_valid.csv'
         test_dataset = StripData(h5testfile, csvtestfile, n_channels=2, process=True)
         print(f'Total test_dataset length is {len(test_dataset)}.')
-        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=64, num_workers=0)
+        test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=32, num_workers=0)
 
 
     batch = next(iter(test_loader))
     images, targets = batch
+    print("Truth labels for the 1st batch: ", targets)
     
     if network == 'resnet18':
         target_layers = [model.layer4[-1]]
@@ -61,14 +62,14 @@ def main():
 
     cam = GradCAM(model=model, target_layers=target_layers, use_cuda=False)
     
-    targets = None
-    #targets = [ClassifierOutputTarget(0)]
+    #targets = None
+    targets = [ClassifierOutputTarget(1) for i in range(32)]
     #targets = [BinaryClassifierOutputTarget(1)]    # for bb0n
     
     ## You can also pass aug_smooth=True and eigen_smooth=True, to apply smoothing.
     grayscale_cam = cam(input_tensor=images, targets=targets)
 
-    evtid = 22
+    evtid = 4
     label = test_dataset[evtid][1]
     particle = 'bb0n' if label == 1 else 'gamma'
     print(f"Event {evtid} is a {particle} event.")
@@ -88,7 +89,7 @@ def main():
     cb2 = plt.colorbar(im2, ax=ax[2])
     
     plt.tight_layout()
-    plt.savefig(f"{particle}Event_bb0nclass_event{evtid}.pdf")    
+    plt.savefig(f"../../figures/{particle}Event_bb0nclass_event{evtid}.pdf")    
     plt.show()
 
 
