@@ -57,7 +57,7 @@ class StripData(data.Dataset):
     def __getitem__(self, idx):
         dset_entry = self.h5file[self.groupname[idx]][self.datainfo[idx]]
         eventtype = 1 if "bb0n" in self.datainfo[idx] else 0  # labelling for my data format
-        img = np.array(dset_entry[:, :, :self.n_channels]) * 9 # 9 scale factor for nEXO offline
+        img = np.array(dset_entry[:, :, :self.n_channels])
         img = np.transpose(img, (2, 0, 1)) # for zepeng's data
         img_tensor = torch.from_numpy(img).type(torch.FloatTensor)
         # preprocessing ##############
