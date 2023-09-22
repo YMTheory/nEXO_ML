@@ -8,8 +8,11 @@ import psutil
 from utils.data_loader import StripData
 from utils.network_manipulation import train, test
 
-from networks.resnet_example import resnet18
+from networks.resnet_example import resnet18, resnet50
 from networks.coatnet import CoAtNet
+from vit_pytorch import ViT
+from vit_pytorch.distill import DistillableViT, DistillWrapper
+
 
 import torch
 from torch.utils.data import DataLoader, random_split
@@ -83,7 +86,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\n Device for training is {device}. \n")
 
-    if model_name == 'coatenet':
+    if model_name == 'coatnet' or model_name == 'vit':
         full_data = StripData(h5_path, csv_path, INPUT_SHAPE[2], process=True)
     elif model_name == 'resnet18':
         full_data = StripData(h5_path, csv_path, INPUT_SHAPE[2], process=False)
@@ -107,6 +110,19 @@ def main():
         num_blocks = [2, 2, 6, 14, 2]
         channels = [128, 128, 256, 512, 1026]
         model = CoAtNet((INPUT_SHAPE[0], INPUT_SHAPE[1]), INPUT_SHAPE[2], num_blocks, channels, num_classes=INPUT_SHAPE[2])
+    elif model_name == 'vit':
+        model = ViT(
+                image_size = 256,
+                patch_size = 32,
+                num_classes = 2,
+                channels = 2,
+                dim = 1024,
+                depth = 6,
+                heads = 16,
+                mlp_dim = 2048,
+                dropout = 0.1,
+                emb_dropout = 0.1
+                )
     else:
         raise ValueError('Unknown network architecture.')
 
@@ -161,24 +177,20 @@ def main():
             print(">>>>>>>>>>>>>> Error: do not set model path to resume!!! ")
             return
         else:
-            if model_name == 'coatnet':
+            if model_name == 'coatnet' or model_name == 'vit':
                 test_dataset = StripData(h5_test_path, csv_test_path, n_channels=INPUT_SHAPE[2], process=True)
             else:
                 test_dataset = StripData(h5_test_path, csv_test_path, n_channels=INPUT_SHAPE[2], process=False)
             print("Total test data size: ", len(test_dataset))
             test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=BATCH_SIZE, num_workers=0)
 
-            for images, labels in valid_loader:
-                print(images)
-                print(labels)
-                #return
-                #images.to(device)
-                #labels.to(device)
+            _, score = test(model, device, criterion, test_loader)
+            np.save(os.path.join(loss_acc_path, model_name+f"_testloss_Nepoch{EPOCHS}_batch{BATCH_SIZE}_lr{MAX_LR}_{args.suffix}.npy" ), score)
 
-                #outputs = model(images)
+    elif args.mode == 'print':
+        from torchinfo import summary
+        summary(model, (1, INPUT_SHAPE[2], INPUT_SHAPE[0], INPUT_SHAPE[1]))
 
-            #_, score = test(model, device, criterion, test_loader)
-            #np.save(os.path.join(loss_acc_path, model_name+f"_testloss_Nepoch{EPOCHS}_batch{BATCH_SIZE}_lr{MAX_LR}_{args.suffix}.npy" ), score)
     else:
         print(f"Error: unknown run mode {args.mode}, options are (train, test, shap).")
 

@@ -30,7 +30,6 @@ class StripData(data.Dataset):
         #img = np.transpose(img, (1, 2, 0)) # for my data
         img = np.array(dset_entry[:, :, :self.n_channels])
         img = np.transpose(img, (2, 0, 1)) # for zepeng's data
-        print("numpy array shape: ", img.shape)
         ##img[img==-100] = 0.
         # preprocessing ##############
         img_tensor = torch.from_numpy(img).type(torch.FloatTensor)
